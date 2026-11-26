@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#174878">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="高コントラスト解答欄でWord教材と入力した解答の読み上げ・解答入力・HTML保存を行うオフライン対応アプリ">
+<link rel="manifest" href="./app.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>Word問題・解答ビュアー（バージョン3）</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color-scheme:light;--size:30pt;--ink:#111111;--paper:#ffffff;--muted:#566375;--field-border:#111111;--field-bg:#fff7d6;--field-ink:#111111;--field-guide:#111111;--field-focus:#1c67ed;--field-outline:#ffe454;--field-tag-bg:#111111;--field-tag-ink:#ffffff}
+*{box-sizing:border-box}
+body{margin:0;background:#eef3f8;color:#14273b}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ccdae7;padding:12px max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));box-shadow:0 2px 7px #11294b10}
+.header-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:21px;margin:0;color:#153d65;letter-spacing:.02em}
+.controls{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:9px}
+.control{display:flex;align-items:center;gap:5px}
+.control-label{font-size:12px;color:#4e6071;white-space:nowrap}
+button,select{font:inherit;touch-action:manipulation}
+button{border:1px solid #90a9c1;background:white;color:#143b5b;border-radius:9px;padding:9px 12px;font-size:15px;font-weight:650;min-height:42px;cursor:pointer}
+button:focus-visible,select:focus-visible,.problem-text:focus-visible,textarea:focus-visible{outline:3px solid #368de2;outline-offset:2px}
+button.primary{background:#155fa1;border-color:#155fa1;color:white}
+button.warn{background:#f4f8fd}
+button:disabled{opacity:.5;cursor:not-allowed}
+select{background:white;color:#17314b;border:1px solid #90a9c1;border-radius:8px;padding:8px 6px;min-height:40px;font-weight:700;font-size:14px}
+.swatch{width:35px;min-width:35px;height:35px;min-height:35px;padding:3px;display:inline-flex;align-items:center;justify-content:center}
+.swatch::after{content:"";display:block;width:21px;height:21px;background:var(--swatch);border-radius:4px;border:1px solid #97a9b9}
+.swatch.active{outline:3px solid #2585e6;outline-offset:1px}
+main{max-width:1060px;margin:0 auto;padding:16px 14px 70px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+#fileInput{display:none}
+#message{border:1px solid #cbdaeb;background:#f9fcff;padding:11px 13px;border-radius:9px;font-size:15px;line-height:1.5;margin-bottom:14px;min-height:45px}
+#message.error{background:#fff1ed;color:#9b290d;border-color:#ffbca7}
+#message.success{background:#e9f8ee;color:#195e34;border-color:#9ed5af}
+.summary{font-size:14px;color:#4a5b6e;margin-bottom:10px}
+.sheet{background:var(--paper);color:var(--ink);padding:18px 18px 22px;border:2px solid #b0c6dd;border-radius:16px;margin-bottom:18px;box-shadow:0 2px 6px #00306410;overflow-wrap:anywhere}
+.sheet-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid #a2acb66b;padding-bottom:9px;margin-bottom:12px;color:var(--ink)}
+.sheet-number{font-weight:700;font-size:16px;opacity:.85}
+.inline-actions{display:flex;flex-wrap:wrap;gap:6px}
+.inline-actions button{font-size:13px;padding:6px 10px;min-height:34px;background:transparent;color:inherit;border-color:currentColor;opacity:.85}
+.problem-text{display:block;white-space:pre-wrap;word-break:break-word;font-size:var(--size);line-height:1.55;cursor:pointer;border-radius:8px;padding:9px 6px;margin:4px -6px 10px;min-height:1.6em}
+.problem-text:active{background:#80808024}
+/* 弱視の児童生徒が見つけやすい、太枠・高コントラストの解答欄 */
+.answer{margin:20px 0 28px}
+.answer-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.answer-label{display:inline-block;font-size:calc(var(--size) * .78);line-height:1.3;font-weight:850;background:var(--field-tag-bg);color:var(--field-tag-ink);padding:6px 13px;border-radius:9px}
+.answer-play{background:#edf6ff;color:#123b62;border:3px solid #27619b;min-height:52px;padding:9px 16px;font-size:19px;font-weight:800;white-space:nowrap}
+.answer-play:active{background:#cfe7fc}
+.answer-input{display:block;width:100%;border:7px solid var(--field-border);border-radius:14px;resize:vertical;min-height:3.4em;background:var(--field-bg);color:var(--field-ink);padding:16px 18px;font-family:inherit;font-size:var(--size);line-height:1.45;font-weight:700;-webkit-text-fill-color:var(--field-ink);caret-color:var(--field-ink);box-shadow:0 2px 0 #00000016}
+.answer-input::placeholder{color:var(--field-guide);opacity:1;font-size:var(--size);font-weight:850;-webkit-text-fill-color:var(--field-guide)}
+.answer-input:focus{border-color:var(--field-focus);outline:4px solid var(--field-outline);outline-offset:2px;box-shadow:0 0 0 2px var(--field-border)}
+@media print{.answer-play{display:none!important}}
+#empty{background:white;padding:22px;border-radius:14px;color:#4d5e72}
+#empty h2{font-size:20px;margin-top:0}
+.note{font-size:13px;color:#576a7c;line-height:1.65}
+.hidden{display:none!important}
+.edit-box{width:100%;min-height:85px;border:2px solid #5f89b0;border-radius:8px;font:20px/1.5 sans-serif;padding:8px;color:#172e44;background:#fff}
+.edit-area{display:none;margin:8px 0 13px;background:#e6f1fd;padding:12px;border-radius:8px}
+.edit-area.open{display:block}
+@media(max-width:650px){h1{font-size:18px}.controls{justify-content:flex-start;width:100%;gap:7px}main{padding:10px 9px 65px}.sheet{padding:12px 11px}.control-label{font-size:12px}.toolbar button{font-size:14px}.swatch{min-height:33px;min-width:33px}}
+@media print{header,.toolbar,#message,.summary,.inline-actions,.edit-area,#empty,.note{display:none!important}body{background:#fff}.sheet{break-inside:avoid;box-shadow:none;border:1px solid #aaa}}
+
+/* V3: 二層の手書き注記と教員コメント */
+.annotation-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#e5effa;border:2px solid #b4c9dd;padding:10px 12px;border-radius:13px;margin:0 0 12px}
+.annotation-toolbar label{font-size:15px;font-weight:800;color:#183a60;display:inline-flex;gap:6px;align-items:center}
+.annotation-toolbar select{font-size:16px}
+.annotation-toolbar .tool-btn{min-height:49px;border:2px solid #385c83;padding:9px 13px}
+.annotation-toolbar .tool-btn.chosen{background:#145b9e;color:#fff;border-color:#145b9e;box-shadow:0 0 0 3px #f9d65c}
+.annotation-toolbar .pen-color{min-width:46px;min-height:46px;border:2px solid #566e85;padding:3px;font-size:17px}
+.annotation-toolbar .pen-color.chosen{border:4px solid #1657c8;outline:2px solid #fff}
+.annotation-toolbar .tool-desc{width:100%;font-size:14px;color:#263c58;line-height:1.5}
+.annotation-toolbar .check-layer{min-height:42px;padding:4px 7px;background:#fff;border:1px solid #a5b8cf;border-radius:9px}
+.annotation-toolbar input[type=checkbox]{width:23px;height:23px;accent-color:#175fa6}
+.draw-zone{position:relative;isolation:isolate;overflow:hidden;border-radius:8px}
+.draw-zone .problem-text{position:relative;margin:4px 0 10px;z-index:0}
+.draw-zone.answer-zone{border-radius:14px}
+.draw-zone .answer-input{margin:0;min-height:220px;resize:none}
+.draw-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;touch-action:none;display:block}
+body[data-tool="pen"] .draw-canvas,body[data-tool="erase"] .draw-canvas{pointer-events:auto;cursor:crosshair}
+body[data-tool="pen"] .draw-zone,body[data-tool="erase"] .draw-zone{outline:2px dotted #3087c6;outline-offset:3px}
+.teacher-comment{border-left:8px solid #c62929;background:#fff7f5;padding:12px 15px;margin-top:13px;border-radius:8px;color:#222}
+.teacher-comment label{display:block;font-size:18px;font-weight:800;color:#9f2525;margin-bottom:8px}
+.teacher-comment textarea{width:100%;min-height:85px;font:700 22px/1.5 sans-serif;color:#8b1414;background:#fff;border:3px solid #9f2525;border-radius:8px;padding:8px}
+.teacher-comment .comment-text{white-space:pre-wrap;font-size:22px;font-weight:700;color:#8b1414}
+.teacher-comment.hidden{display:none}
+.sheet-hint{font-size:13px;font-weight:700;opacity:.8;margin:2px 0 7px}
+.role-indicator{font-size:16px;font-weight:850;padding:7px 11px;border-radius:7px;background:#fff;color:#1c4b7c}
+body.teacher-mode .role-indicator{background:#ffe5e5;color:#9f2525}
+@media(max-width:650px){.annotation-toolbar{gap:6px;padding:8px}.annotation-toolbar label{font-size:14px}.annotation-toolbar .tool-btn{padding:6px 9px;font-size:14px}.draw-zone .answer-input{min-height:210px}}
+@media print{.annotation-toolbar,.sheet-hint{display:none!important}.teacher-comment textarea{border:none}}
+</style>
+</head>
+<body>
+<header>
+ <div class="header-line"><h1>Word問題・解答ビュアー <small style="font-size:12px;font-weight:500">バージョン3〈生徒の手書き・教員の添削〉</small></h1>
+ <div class="controls" aria-label="表示設定">
+  <div class="control"><label class="control-label" for="sizeChoice">文字サイズ</label><select id="sizeChoice" aria-label="文字サイズ"><option value="40">40pt</option><option value="30" selected>30pt</option><option value="20">20pt</option></select></div>
+  <div class="control" role="group" aria-label="文字色"><span class="control-label">文字</span><button class="swatch active" data-ink="黒" style="--swatch:#111111" title="文字色：黒" aria-label="文字色を黒にする" aria-pressed="true"></button><button class="swatch" data-ink="白" style="--swatch:#ffffff" title="文字色：白" aria-label="文字色を白にする" aria-pressed="false"></button><button class="swatch" data-ink="青" style="--swatch:#1768cc" title="文字色：青" aria-label="文字色を青にする" aria-pressed="false"></button><button class="swatch" data-ink="黄" style="--swatch:#e5c400" title="文字色：黄色" aria-label="文字色を黄色にする" aria-pressed="false"></button></div>
+  <div class="control" role="group" aria-label="背景色"><span class="control-label">背景</span><button class="swatch active" data-paper="白" style="--swatch:#ffffff" title="背景色：白" aria-label="背景色を白にする" aria-pressed="true"></button><button class="swatch" data-paper="黒" style="--swatch:#111111" title="背景色：黒" aria-label="背景色を黒にする" aria-pressed="false"></button></div>
+ </div></div>
+</header>
+<main>
+ <div class="toolbar"><button id="openBtn" class="primary">Wordファイルを開く（.docx）</button><input id="fileInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><button id="demoBtn">サンプルを表示</button><button id="saveBtn" class="primary">解答をHTMLで保存</button><button id="stopBtn">読み上げ停止</button><button id="resetBtn" class="warn">解答の入力文字を消去</button></div>
+ <div class="annotation-toolbar" aria-label="書き込み設定">
+  <label>作業者<select id="roleChoice" aria-label="作業者の切り替え"><option value="student">生徒</option><option value="teacher">教員</option></select></label>
+  <span id="roleIndicator" class="role-indicator">生徒の書き込み</span>
+  <button type="button" class="tool-btn chosen" data-tool-choice="navigate" aria-pressed="true">操作・スクロール</button>
+  <button type="button" class="tool-btn" data-tool-choice="pen" aria-pressed="false">✎ ペン</button>
+  <button type="button" class="tool-btn" data-tool-choice="erase" aria-pressed="false">消しゴム</button>
+  <button type="button" id="undoInkBtn" class="tool-btn">ひとつ戻す</button>
+  <label>ペン色<select id="penColor" aria-label="ペンの色"><option value="#1768cc">青</option><option value="#c51e28">赤</option><option value="#111111">黒</option><option value="#ffe100">黄</option><option value="#ffffff">白</option></select></label>
+  <label>太さ<select id="penWidth" aria-label="ペンの太さ"><option value="3">細</option><option value="6" selected>中</option><option value="11">太</option></select></label>
+  <label class="check-layer"><input type="checkbox" id="studentVisible" checked>生徒の筆跡を表示</label>
+  <label class="check-layer"><input type="checkbox" id="teacherVisible" checked>教員の添削を表示</label>
+  <div class="tool-desc">「操作・スクロール」では問題の読み上げと文字入力ができます。「ペン」で指やApple Pencilを使って問題文・解答欄に直接書けます。教員モードでは生徒の解答を変更せず添削できます。※モード切り替えは本人認証ではありません。</div>
+ </div>
+ <div id="message" role="status" aria-live="polite">「Wordファイルを開く」を選ぶか、「サンプルを表示」で操作を試してください。内容はサーバーへ送信しません。</div>
+ <div id="summary" class="summary"></div>
+ <div id="intro" class="sheet hidden" aria-label="教材の説明"></div>
+ <div id="sheets"></div>
+ <div id="empty"><h2>使い方</h2><p>① Wordファイル（.docx）を選択 → ② 問題文をタップして読み上げ → ③ 解答を入力し、解答欄の「読み上げ」で確認 → ④「ペン」で手書き → ⑤ 教員モードで添削 → ⑥ HTMLで保存。</p><p>認識する目印の例：<strong>解答欄（あ）</strong> ／ <strong>【解答欄：あ】</strong> ／ <strong>解答欄(1)</strong>。問題の開始は <strong>問1</strong>、<strong>問題2</strong>、<strong>【問題3】</strong> などを優先して認識します。</p><p class="note">試作版では文字と表内の文章が対象です。Wordの画像・図形・凝ったレイアウトは再現しません。保存すると問題・回答・読み上げ・生徒の筆跡・教員の添削を1つのHTMLにまとめます。</p></div>
+ <p class="note">書き込みは現在のHTMLに含めて保存され、別の端末でも再編集できます。教員と生徒のデータは別レイヤーですが、モード切り替えにパスワード保護はありません。操作中は『操作・スクロール』に切り替えるとスクロールや読み上げができます。</p><p class="note">表示が崩れたり問題の区切りを誤認識した場合は、各問題の「問題文を修正」から文字を直せます。iPadでの完全オフライン利用は、Webアプリとしてホーム画面に追加して初回表示を済ませる方式を想定しています。</p>
+</main>
+<script type="application/json" id="embeddedState"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const colors={黒:'#111111',白:'#ffffff',青:'#1768cc',黄:'#e5c400'};
+const papers={白:'#ffffff',黒:'#111111'};
+function relativeLuminance(hex){const rgb=hex.match(/[0-9a-f]{2}/gi).map(n=>parseInt(n,16)/255);const v=rgb.map(c=>c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4);return v[0]*.2126+v[1]*.7152+v[2]*.0722;}
+function contrastRatio(a,b){const x=relativeLuminance(a),y=relativeLuminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+function fieldPalette(){const dark=opts.paper==='黒',bg=dark?'#171717':'#fff7d6',chosen=colors[opts.ink];return{border:dark?'#ffffff':'#111111',bg,ink:contrastRatio(chosen,bg)>=4.5?chosen:(dark?'#ffffff':'#111111'),guide:dark?'#ffffff':'#111111',focus:dark?'#ffeb3b':'#1c67ed',outline:dark?'#35c8ff':'#ffe454',tagBg:dark?'#ffffff':'#111111',tagInk:dark?'#111111':'#ffffff'};}
+
+let groups=[],documentName='サンプル教材',counter=0,introText='';
+let opts={size:'30',ink:'黒',paper:'白'};
+
+let inkSettings={role:'student',tool:'navigate',color:'#1768cc',width:6,studentVisible:true,teacherVisible:true};
+let historyByRole={student:[],teacher:[]};
+const inkSites=new Set();
+let strokeSerial=0;
+function safeMarks(seg){if(!seg.marks||typeof seg.marks!=='object')seg.marks={student:[],teacher:[]};for(const role of ['student','teacher'])if(!Array.isArray(seg.marks[role]))seg.marks[role]=[];return seg.marks;}
+function isDrawing(){return inkSettings.tool==='pen'||inkSettings.tool==='erase';}
+function refreshInkToolbar(){
+ document.body.dataset.tool=inkSettings.tool;document.body.classList.toggle('teacher-mode',inkSettings.role==='teacher');
+ $('roleChoice').value=inkSettings.role;$('roleIndicator').textContent=inkSettings.role==='teacher'?'教員の添削':'生徒の書き込み';
+ $('penColor').value=inkSettings.color;$('penWidth').value=String(inkSettings.width);
+ $('studentVisible').checked=inkSettings.studentVisible;$('teacherVisible').checked=inkSettings.teacherVisible;
+ document.querySelectorAll('[data-tool-choice]').forEach(b=>{let on=b.dataset.toolChoice===inkSettings.tool;b.classList.toggle('chosen',on);b.setAttribute('aria-pressed',String(on));});
+ document.querySelectorAll('.answer-input').forEach(input=>input.readOnly=isDrawing()||inkSettings.role==='teacher');
+ document.querySelectorAll('.teacher-comment textarea').forEach(input=>input.readOnly=inkSettings.role!=='teacher'||isDrawing());
+ redrawAll();
+}
+function saveInkHistory(op){historyByRole[inkSettings.role].push(op);if(historyByRole[inkSettings.role].length>90)historyByRole[inkSettings.role].shift();}
+function inkPoint(e,canvas){let r=canvas.getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))];}
+function pointNear(stroke,p,w,h,radius){let pts=stroke.points||[];for(let i=0;i<pts.length;i++){
+ const a=pts[i],b=pts[Math.min(i+1,pts.length-1)];let ax=a[0]*w,ay=a[1]*h,bx=b[0]*w,by=b[1]*h,px=p[0]*w,py=p[1]*h;
+ let dx=bx-ax,dy=by-ay,t=dx*dx+dy*dy?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy))):0;
+ if(Math.hypot(px-(ax+dx*t),py-(ay+dy*t))<radius+(stroke.width||6)/2)return true;
+ }return false;}
+function redrawSite(site){
+ if(!site.canvas.isConnected)return;
+ const canvas=site.canvas,r=canvas.getBoundingClientRect(),width=Math.max(1,r.width),height=Math.max(1,r.height),dpr=Math.min(window.devicePixelRatio||1,3);
+ let pw=Math.max(1,Math.round(width*dpr)),ph=Math.max(1,Math.round(height*dpr));
+ if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
+ const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+ const marks=safeMarks(site.seg);
+ for(const role of ['student','teacher']){
+  if(!inkSettings[role+'Visible'])continue;
+  for(const stroke of marks[role]){
+   if(!stroke.points?.length)continue;
+   ctx.strokeStyle=stroke.color||'#1768cc';ctx.fillStyle=ctx.strokeStyle;
+   ctx.lineWidth=stroke.width||6;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+   stroke.points.forEach((p,i)=>{const x=p[0]*width,y=p[1]*height;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+   if(stroke.points.length===1){let p=stroke.points[0];ctx.arc(p[0]*width,p[1]*height,(stroke.width||6)/2,0,Math.PI*2);ctx.fill();}else ctx.stroke();
+  }
+ }
+}
+function redrawAll(){for(const site of [...inkSites]){if(site.canvas.isConnected)redrawSite(site);else inkSites.delete(site);}}
+function addInkZone(wrap,seg,aria){
+ safeMarks(seg);wrap.classList.add('draw-zone');const c=document.createElement('canvas');c.className='draw-canvas';c.setAttribute('role','img');c.setAttribute('aria-label',aria+'に重ねる手書きの領域。ペン選択時に指で書き込めます。');wrap.append(c);
+ const site={canvas:c,seg};inkSites.add(site);
+ // Keep brush paths as vector points, not just canvas pixels: saving retains editability.
+ let active=null;
+ function eraseAt(e){let r=c.getBoundingClientRect(),pos=inkPoint(e,c),list=safeMarks(seg)[inkSettings.role];for(let i=list.length-1;i>=0;i--){if(pointNear(list[i],pos,r.width,r.height,16)){active.removed.push({stroke:list[i],index:i});list.splice(i,1);}}redrawSite(site);}
+ c.addEventListener('pointerdown',e=>{
+  if(!isDrawing())return;if(e.cancelable)e.preventDefault();c.setPointerCapture(e.pointerId);
+  let role=inkSettings.role;if(inkSettings.tool==='pen'){
+   let stroke={id:++strokeSerial,color:inkSettings.color,width:inkSettings.width,points:[inkPoint(e,c)]};safeMarks(seg)[role].push(stroke);active={kind:'add',role,seg,stroke,id:e.pointerId};redrawSite(site);
+  }else{active={kind:'erase',role,seg,removed:[],id:e.pointerId};eraseAt(e);}
+ });
+ c.addEventListener('pointermove',e=>{
+  if(!active||active.id!==e.pointerId)return;if(e.cancelable)e.preventDefault();
+  if(active.kind==='erase'){eraseAt(e);return;}
+  let p=inkPoint(e,c),pts=active.stroke.points,prev=pts[pts.length-1],r=c.getBoundingClientRect();
+  if(Math.hypot((p[0]-prev[0])*r.width,(p[1]-prev[1])*r.height)>.8&&pts.length<2500){pts.push(p);redrawSite(site);}
+ });
+ function finish(e){if(!active||active.id!==e.pointerId)return;let a=active;active=null;
+  if(a.kind==='add'||a.removed.length){historyByRole[a.role].push(a);if(historyByRole[a.role].length>90)historyByRole[a.role].shift();saveDraft();}
+ }
+ c.addEventListener('pointerup',finish);c.addEventListener('pointercancel',finish);
+ if('ResizeObserver'in window){const ro=new ResizeObserver(()=>{if(c.isConnected)redrawSite(site);else ro.disconnect();});ro.observe(wrap);}
+ requestAnimationFrame(()=>redrawSite(site));return wrap;
+}
+$('roleChoice').addEventListener('change',e=>{inkSettings.role=e.target.value;inkSettings.color=inkSettings.role==='teacher'?'#c51e28':'#1768cc';inkSettings.tool='navigate';render();refreshInkToolbar();saveDraft();msg(inkSettings.role==='teacher'?'教員モード：生徒の解答を保護し、赤ペンで添削できます。':'生徒モード：問題と解答を入力・手書きできます。','success');});
+document.querySelectorAll('[data-tool-choice]').forEach(b=>b.addEventListener('click',()=>{inkSettings.tool=b.dataset.toolChoice;refreshInkToolbar();saveDraft();msg(inkSettings.tool==='navigate'?'操作・スクロール：文字入力、読み上げ、画面の移動ができます。':inkSettings.tool==='pen'?'ペン：問題文・解答欄の上を指またはApple Pencilでなぞってください。':'消しゴム：現在の作業者の筆跡だけを消します。');}));
+$('penColor').addEventListener('change',e=>{inkSettings.color=e.target.value;saveDraft();});
+$('penWidth').addEventListener('change',e=>{inkSettings.width=+e.target.value;saveDraft();});
+for(const role of ['student','teacher'])$(''+role+'Visible').addEventListener('change',e=>{inkSettings[role+'Visible']=e.target.checked;if(role==='teacher')document.querySelectorAll('.teacher-comment').forEach((box)=>{box.classList.toggle('hidden',!inkSettings.teacherVisible||(inkSettings.role!=='teacher'&&!box.querySelector('.comment-text')?.textContent));});redrawAll();saveDraft();});
+$('undoInkBtn').addEventListener('click',()=>{
+ const op=historyByRole[inkSettings.role].pop();if(!op){msg('現在の作業者で戻せる筆跡がありません。');return;}
+ let list=safeMarks(op.seg)[op.role];
+ if(op.kind==='add'){let ix=list.indexOf(op.stroke);if(ix>=0)list.splice(ix,1);}else if(op.kind==='erase'){for(const item of [...op.removed].reverse())list.splice(Math.min(item.index,list.length),0,item.stroke);}
+ redrawAll();saveDraft();msg('ひとつ前の書き込み操作を戻しました。','success');
+});
+
+function msg(text,kind=''){const e=$('message');e.textContent=text;e.className=kind;}
+function cssSettings(){document.documentElement.style.setProperty('--size',opts.size+'pt');document.documentElement.style.setProperty('--ink',colors[opts.ink]);document.documentElement.style.setProperty('--paper',papers[opts.paper]);const fp=fieldPalette();for(const [k,v] of Object.entries(fp))document.documentElement.style.setProperty('--field-'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),v);$('sizeChoice').value=opts.size;
+ document.querySelectorAll('[data-ink]').forEach(b=>{let on=b.dataset.ink===opts.ink;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});document.querySelectorAll('[data-paper]').forEach(b=>{let on=b.dataset.paper===opts.paper;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
+ if(opts.ink===opts.paper)msg('注意：文字色と背景色が同じため、問題や解答が見えにくくなります。','error');}
+$('sizeChoice').addEventListener('change',e=>{opts.size=e.target.value;cssSettings();saveDraft();});
+document.querySelectorAll('[data-ink]').forEach(b=>b.addEventListener('click',()=>{opts.ink=b.dataset.ink;cssSettings();saveDraft();}));
+document.querySelectorAll('[data-paper]').forEach(b=>b.addEventListener('click',()=>{opts.paper=b.dataset.paper;cssSettings();saveDraft();}));
+const demoLines=['【問題1】 植物が光合成をするために必要なものを２つ答えなさい。','解答欄（あ）','解答欄（い）','【問題2】 日本の首都はどこですか。','【解答欄：う】','問3　次の文の（　）に入る語を答えましょう。','水は（　）度で沸騰します。 解答欄(え)'];
+function newGroup(){let g={id:++counter,segments:[]};groups.push(g);return g;}
+// Only explicit answer markers become writable fields; arbitrary blank lines are not treated as answers.
+const markerRe=/【\s*解答欄\s*[:：]?\s*([^】\r\n]{0,16})\s*】|解答欄\s*[（(]\s*([^）)\r\n]{1,16})\s*[）)]|解答欄\s*[:：]\s*([^\s、。]{1,16})/gu;
+const headingRe=/^\s*(?:【\s*(?:問|問題)\s*[0-9０-９一二三四五六七八九十]+\s*】|第\s*[0-9０-９]+\s*問(?:[\s.．:：、]|$)|(?:問|問題)\s*[0-9０-９一二三四五六七八九十]+(?:[\s\.．:：、）)]|$)|[①②③④⑤⑥⑦⑧⑨⑩](?:\s|$))/u;
+function addText(g,txt){if(!txt||!txt.trim())return;let last=g.segments[g.segments.length-1];if(last&&last.type==='text')last.text+='\n'+txt;else g.segments.push({type:'text',text:txt});}
+function tokenizeLine(line){let out=[],last=0;markerRe.lastIndex=0;for(const m of line.matchAll(markerRe)){if(m.index>last)out.push({type:'text',text:line.slice(last,m.index)});let label=(m[1]??m[2]??m[3]??'').trim().replace(/^[：:\s]+/,'');out.push({type:'answer',label:label||'解答',value:''});last=m.index+m[0].length;}if(last<line.length)out.push({type:'text',text:line.slice(last)});return out;}
+function parseLines(lines){groups=[];counter=0;introText='';let g=null;
+ const cleaned=lines.map(x=>String(x??'').trim()).filter(Boolean);const first=cleaned.findIndex(x=>headingRe.test(x));if(first>0){introText=cleaned.slice(0,first).join('\n');lines=cleaned.slice(first);}
+ for(const raw of lines){const line=String(raw??'').replace(/\u00a0/g,' ').trim();if(!line)continue;
+  let begins=headingRe.test(line);if(!g||begins&&(g.segments.length>0))g=newGroup();
+  for(const item of tokenizeLine(line)){if(item.type==='text')addText(g,item.text);else g.segments.push(item);}
+ }
+ groups=groups.filter(g=>g.segments.length);if(!groups.length)throw Error('文書から問題文を見つけられませんでした。');return groups;
+}
+function problemText(g){return g.segments.filter(s=>s.type==='text').map(s=>s.text).join('。\n').trim();}
+function speakText(text,context){
+ const spoken=String(text??'').trim();
+ if(!spoken){msg(context+'に読み上げる文字がありません。先に文字を入力してください。','error');return;}
+ if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){
+  msg('この環境では音声読み上げが利用できません。Safariなど対応ブラウザで開いてください。','error');return;
+ }
+ try{
+  const engine=window.speechSynthesis;
+  engine.cancel(); // Stops previous question/answer speech before the next one.
+  const utterance=new SpeechSynthesisUtterance(spoken);
+  utterance.lang='ja-JP';utterance.rate=.88;utterance.pitch=1;
+  const voices=engine.getVoices();
+  const jp=voices.find(v=>v.lang.toLowerCase().startsWith('ja')&&v.localService)||voices.find(v=>v.lang.toLowerCase().startsWith('ja'));
+  if(jp)utterance.voice=jp;
+  utterance.onerror=e=>{if(e.error!=='canceled'&&e.error!=='interrupted')msg(context+'の読み上げに失敗しました。端末の音声設定を確認してください。','error');};
+  engine.speak(utterance);
+  msg(context+'を読み上げています。');
+ }catch(e){msg('読み上げに失敗しました：'+(e.message||String(e)),'error');}
+}
+function speak(g){speakText(problemText(g),'問題文');}
+function speakAnswer(value,label){speakText(value,`解答欄（${label}）`);}
+$('stopBtn').addEventListener('click',()=>{window.speechSynthesis?.cancel();msg('読み上げを停止しました。');});
+function el(tag,cls,text){let x=document.createElement(tag);if(cls)x.className=cls;if(text!==undefined)x.textContent=text;return x;}
+function render(){const root=$('sheets');root.replaceChildren();const intro=$('intro');intro.replaceChildren();intro.classList.toggle('hidden',!introText);if(introText){intro.append(el('div','sheet-number','教材の説明'));let t=el('div','problem-text',introText);t.setAttribute('role','button');t.tabIndex=0;t.title='タップすると説明を読み上げます';const readIntro=()=>speak({segments:[{type:'text',text:introText}]});t.addEventListener('click',readIntro);t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();readIntro();}});intro.append(t);} $('empty').classList.toggle('hidden',groups.length>0);$('summary').textContent=groups.length?`教材：${documentName}　｜　問題数：${groups.length}　｜　解答欄：${groups.reduce((n,g)=>n+g.segments.filter(s=>s.type==='answer').length,0)}個`:'';
+ groups.forEach((g,i)=>{let card=el('section','sheet');card.dataset.gid=g.id;let head=el('div','sheet-head');head.append(el('span','sheet-number',`問題 ${i+1}`));let acts=el('div','inline-actions');let play=el('button','', '▶ 読み上げ');play.type='button';play.addEventListener('click',()=>speak(g));acts.append(play);
+ let edit=el('button','', '問題文を修正');edit.type='button';acts.append(edit);head.append(acts);card.append(head);
+ let editWrap=el('div','edit-area');let area=el('textarea','edit-box');area.setAttribute('aria-label',`問題${i+1}の問題文を修正`);area.value=problemText(g);editWrap.append(area);let ok=el('button','primary','修正を反映');ok.type='button';ok.addEventListener('click',()=>{let t=area.value.trim();if(!t)return msg('問題文を入力してください。','error');let first=g.segments.findIndex(s=>s.type==='text');if(first>=0){g.segments[first].text=t;g.segments=g.segments.filter((s,j)=>s.type!=='text'||j===first);}else g.segments.unshift({type:'text',text:t});render();saveDraft();msg('問題文を修正しました。','success');});editWrap.append(ok);card.append(editWrap);edit.addEventListener('click',()=>{editWrap.classList.toggle('open');area.value=problemText(g);});
+ g.segments.forEach((s,j)=>{if(s.type==='text'){let zone=el('div','problem-zone');let t=el('div','problem-text',s.text);t.setAttribute('role','button');t.tabIndex=0;t.title='タップすると、この問題全体を読み上げます';t.setAttribute('aria-label','問題文を読み上げる：'+s.text);t.addEventListener('click',()=>speak(g));t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();speak(g);}});zone.append(t);addInkZone(zone,s,'問題文');card.append(zone);}else{let wrap=el('div','answer');let label=el('label','answer-label',`解答欄（${s.label}）`);let input=el('textarea','answer-input');input.rows=2;input.value=s.value||'';input.placeholder='▶ タップして入力';input.id=`answer_${g.id}_${j}`;label.htmlFor=input.id;input.addEventListener('input',()=>{s.value=input.value;saveDraft();});let answerHead=el('div','answer-head');
+ let answerPlay=el('button','answer-play','▶ 読み上げ');
+ answerPlay.type='button';
+ answerPlay.title=`解答欄（${s.label}）に今入力されている文字だけを読み上げます`;
+ answerPlay.setAttribute('aria-label',`解答欄（${s.label}）の入力した文字を読み上げる`);
+ answerPlay.addEventListener('click',()=>speakAnswer(input.value,s.label));
+ answerHead.append(label,answerPlay);let inputZone=el('div','answer-zone');inputZone.append(input);addInkZone(inputZone,s,`解答欄（${s.label}）`);wrap.append(answerHead,inputZone);
+ let comment=el('div','teacher-comment');let commentLabel=el('label','',`先生のコメント（解答欄 ${s.label}）`);comment.append(commentLabel);
+ let commentInput=el('textarea','');commentInput.placeholder='教員が講評を入力（文字）';commentInput.value=s.teacherComment||'';commentInput.readOnly=inkSettings.role!=='teacher'||isDrawing();commentInput.addEventListener('input',()=>{s.teacherComment=commentInput.value;saveDraft();});
+ if(inkSettings.role==='teacher')comment.append(commentInput);else comment.append(el('div','comment-text',s.teacherComment||''));
+ comment.classList.toggle('hidden',!inkSettings.teacherVisible||(inkSettings.role!=='teacher'&&!s.teacherComment));wrap.append(comment);card.append(wrap);}});root.append(card);});refreshInkToolbar();}
+function saveDraft(){try{localStorage.setItem('wordReaderTrialDraftV3',JSON.stringify({groups,documentName,opts,counter,introText,inkSettings}));}catch(e){/* Safari private mode and file viewers may disallow storage */}}
+function restoreDraft(){
+ try{
+  let saved=null,embedded=$('embeddedState')?.textContent?.trim();
+  if(embedded)saved=JSON.parse(embedded);
+  else saved=JSON.parse(localStorage.getItem('wordReaderTrialDraftV3')||'null');
+  if(saved&&Array.isArray(saved.groups)&&saved.groups.length&&saved.opts){
+   groups=saved.groups;documentName=saved.documentName||'復元した教材';introText=saved.introText||'';
+   opts={...opts,...saved.opts};inkSettings={...inkSettings,...saved.inkSettings};
+   counter=Math.max(...groups.map(g=>g.id||0));render();cssSettings();refreshInkToolbar();
+   msg(embedded?'保存された問題・解答・添削を開きました。':'前回の作業を復元しました。失わないようHTMLで保存してください。','success');return true;
+  }
+ }catch(e){console.warn('Cannot restore document',e)}
+ return false;
+}
+$('demoBtn').addEventListener('click',()=>{if(groups.length&&!confirm('現在の問題と解答をサンプルに置き換えますか？'))return;parseLines(demoLines);historyByRole={student:[],teacher:[]};documentName='サンプル教材';render();saveDraft();msg('サンプルを読み込みました。問題文をタップして読み上げを確認してください。','success');});
+$('resetBtn').addEventListener('click',()=>{if(!groups.length)return;if(!confirm('解答の入力文字をすべて消しますか？ 手書きと教員コメントは残ります。'))return;for(const g of groups)for(const s of g.segments)if(s.type==='answer')s.value='';render();saveDraft();msg('解答の入力文字を消去しました。手書きと教員コメントは残っています。','success');});
+$('openBtn').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',async e=>{let file=e.target.files?.[0];e.target.value='';if(!file)return;if(!/\.docx$/i.test(file.name)){msg('対応形式は .docx です。.doc はWordで「名前を付けて保存」から .docx に変更してください。','error');return;}if(groups.length&&!confirm('現在の問題と解答を読み込んだWordに置き換えますか？　必要なら先にHTMLで保存してください。'))return;
+ try{msg('Wordを読み込んでいます…');let arr=new Uint8Array(await file.arrayBuffer());let xmlBytes=await findZipMember(arr,'word/document.xml');let xml=new TextDecoder('utf-8').decode(xmlBytes);let lines=readWordLines(xml);parseLines(lines);historyByRole={student:[],teacher:[]};documentName=file.name.replace(/\.docx$/i,'');render();saveDraft();msg(`読み込み完了：${groups.length}問。解答欄が正しく分かれたか確認してください。`,'success');}catch(err){msg('読み込めませんでした：'+(err?.message||String(err)),'error');console.error(err);}});
+function u16(a,o){return a[o]|(a[o+1]<<8)}
+function u32(a,o){return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0}
+async function findZipMember(bytes,target){let eocd=-1;for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--){if(u32(bytes,i)===0x06054b50){eocd=i;break;}}if(eocd<0)throw Error('WordファイルのZIP構造を確認できません。');let total=u16(bytes,eocd+10),ptr=u32(bytes,eocd+16);if(total>30000)throw Error('ファイルの項目数が多すぎます。');
+ for(let i=0;i<total;i++){if(u32(bytes,ptr)!==0x02014b50)throw Error('ZIPの目次を読み込めません。');const method=u16(bytes,ptr+10),size=u32(bytes,ptr+20),nameLen=u16(bytes,ptr+28),extraLen=u16(bytes,ptr+30),commentLen=u16(bytes,ptr+32),offset=u32(bytes,ptr+42);const name=new TextDecoder('utf-8').decode(bytes.subarray(ptr+46,ptr+46+nameLen));if(name===target){if(size>30*1024*1024)throw Error('文書が大きすぎます。');if(u32(bytes,offset)!==0x04034b50)throw Error('ZIPのデータ位置が不正です。');let start=offset+30+u16(bytes,offset+26)+u16(bytes,offset+28),data=bytes.subarray(start,start+size);if(start+size>bytes.length)throw Error('ZIPのデータが不足しています。');if(method===0)return data;if(method!==8)throw Error('この圧縮方式には対応していません。');if(!('DecompressionStream'in window))throw Error('このブラウザはZIP解凍機能に対応していません。iPadOSを更新してください。');const inflated=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));const result=new Uint8Array(await new Response(inflated).arrayBuffer());if(result.length>30*1024*1024)throw Error('展開したWord文書が大きすぎます。');return result;}
+ ptr+=46+nameLen+extraLen+commentLen;if(ptr>bytes.length)throw Error('ZIPの目次が不正です。');}
+ throw Error('Word本文がありません。.docxファイルか確認してください。');}
+const WNS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+function wordParagraph(p){let out='';for(const n of p.getElementsByTagName('*')){if(n.namespaceURI!==WNS)continue;switch(n.localName){case't':out+=n.textContent;break;case'tab':out+='　';break;case'br':case'cr':out+='\n';break;}}return out.trim();}
+function readWordLines(xml){let doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))throw Error('Wordの文書XMLが不正です。');let body=doc.getElementsByTagNameNS(WNS,'body')[0];if(!body)throw Error('Word本文を特定できません。');let result=[];
+ function visit(container){for(const n of container.children){if(n.namespaceURI!==WNS)continue;if(n.localName==='p'){let v=wordParagraph(n);if(v)result.push(...v.split('\n').filter(Boolean));}else if(n.localName==='tbl'){for(const tr of n.children){if(tr.localName!=='tr')continue;for(const tc of tr.children){if(tc.localName==='tc')visit(tc);}}}else if(n.localName==='sdt'||n.localName==='sdtContent')visit(n);}}
+ visit(body);return result;}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function outputHTML(){
+ const state={groups,documentName,opts,counter,introText,inkSettings};
+ const html=document.documentElement.cloneNode(true);
+ // Embedded JSON is safe inside a script element, even if answer text contains HTML.
+ const serialized=JSON.stringify(state).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
+ html.querySelector('#embeddedState').textContent=serialized;
+ html.querySelector('title').textContent=documentName+'｜問題・解答・添削（V3）';
+ // The app re-renders its DOM from embeddedState when opened: read/write/mark-up remain enabled.
+ return '<!doctype html>\n'+html.outerHTML;
+}
+function downloadText(filename,text){const blob=new Blob([text],{type:'text/html;charset=utf-8'});const file=new File([blob],filename,{type:'text/html'});const url=URL.createObjectURL(blob);
+ // Download fallback works in desktop browsers and many iPad Safari versions.
+ let a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return file;}
+$('saveBtn').addEventListener('click',async()=>{if(!groups.length)return msg('問題がまだありません。Wordファイルを開いてください。','error');let fname=(documentName.replace(/[\\/:*?"<>|]/g,'_').slice(0,70)||'教材')+'_解答.html';let html=outputHTML();saveDraft();try{let file=new File([html],fname,{type:'text/html'});if(navigator.canShare?.({files:[file]})&&navigator.share){await navigator.share({files:[file],title:'問題と解答を保存'});msg('共有画面を開きました。「ファイルに保存」を選んだ場合、iPad内に保存できます。','success');return;}}catch(e){if(e.name==='AbortError'){msg('共有・保存をキャンセルしました。');return;}}downloadText(fname,html);msg('HTMLファイルを保存しました。Safariのダウンロードから「ファイル」で場所を確認してください。','success');});
+if(!restoreDraft()){cssSettings();refreshInkToolbar();}
+if(location.protocol==='https:'&&'serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.info('Offline cache not registered',e)));}
+</script>
+</body>
+</html>

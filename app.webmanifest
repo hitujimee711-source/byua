@@ -1,0 +1,25 @@
+{
+  "name": "Word問題・解答ビュアー（バージョン3）",
+  "short_name": "Word解答V3",
+  "description": "Word教材読み込み・読み上げ・生徒の手書きと教員の添削・HTML保存",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef3f8",
+  "theme_color": "#174878",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
